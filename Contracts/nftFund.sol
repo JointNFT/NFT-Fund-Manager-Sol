@@ -6,6 +6,7 @@ pragma solidity ^0.8.0;
 import "./Interfaces/IERC20.sol";
 import "./Interfaces/IERC20Metadata.sol";
 import "./utils/Context.sol";
+import "./Interfaces/IERC721.sol";
 
 /**
  * @dev Implementation of the {IERC20} interface.
@@ -122,7 +123,7 @@ contract erc20_fund is Context, IERC20, IERC20Metadata {
         payable(msg.sender).transfer(eth_to_return);
     }
     
-    function 
+     
 
     
     /**
