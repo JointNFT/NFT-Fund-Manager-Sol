@@ -33,7 +33,7 @@ import "./Interfaces/IERC721.sol";
  * functions have been added to mitigate the well-known issues around setting
  * allowances. See {IERC20-approve}.
  */
-contract erc20_fund is Context, IERC20, IERC20Metadata {
+contract erc20Fund is Context, IERC20, IERC20Metadata {
     mapping(address => uint256) private _balances;
 
     mapping(address => mapping(address => uint256)) private _allowances;
