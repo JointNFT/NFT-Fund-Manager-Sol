@@ -34,13 +34,28 @@ import "./Interfaces/IERC721.sol";
  * allowances. See {IERC20-approve}.
  */
 contract erc20Fund is Context, IERC20, IERC20Metadata {
+    event NFTBought(string openseaUrl, string imageUrl, uint value, address nftAddress);
+    event NFTSold(string openseaUrl, string imageUrl, uint value, address nftAddress);
+    
+    struct Asset {
+        string openseaUrl;
+        string imageUrl;
+        uint256 value;
+        address nftAddress;
+        uint256 timeBought;
+    }
+
     mapping(address => uint256) private _balances;
-
+    mapping(uint256 => Asset) private _assetMap;
+    uint256 private _noOfAssets = 0;
     mapping(address => mapping(address => uint256)) private _allowances;
-
+    
     uint256 private _totalSupply;
-    uint256 _tokenPrice;
+    uint256 private _tokenPrice;
+    uint256 private _tokenStartPrice;
+    uint256 private _weiBalance;
 
+    string private _fundImgUrl;
     string private _name;
     string private _symbol;
     address private _owner;
@@ -55,12 +70,18 @@ contract erc20Fund is Context, IERC20, IERC20Metadata {
      * All two of these values are immutable: they can only be set once during
      * construction.
      */
-    constructor(string memory name_, string memory symbol_, uint256 tokenPrice_) {
+    constructor(string memory name_, string memory symbol_, uint256 tokenPrice_, address owner_, string memory fundImgUrl_) payable {
+        
         _name = name_;
         _symbol = symbol_;
-        _owner = msg.sender;
+        _owner = owner_;
         _tokenPrice = tokenPrice_;
         _totalSupply = 0;
+        _weiBalance = msg.value;
+        _tokenStartPrice = tokenPrice_;
+        _fundImgUrl = fundImgUrl_;
+
+        _balances[owner_] = msg.value/tokenPrice_;
     }
 
     
@@ -70,11 +91,35 @@ contract erc20Fund is Context, IERC20, IERC20Metadata {
     function name() public view virtual override returns (string memory) {
         return _name;
     }
+
+    function tokenPrice() public view virtual returns (uint) {
+        return _tokenPrice;
+    }
+
+    function tokenStartPrice() public view virtual returns (uint) {
+        return _tokenStartPrice;
+    }
+
+    function weiBalance() public view virtual returns (uint) {
+        return _weiBalance;
+    }
+
+    function noOfAssets() public view virtual returns (uint) {
+        return _noOfAssets;
+    }
     
+    function getAsset(uint256 nftIndex) public view virtual returns (Asset memory) {
+        return _assetMap[nftIndex];
+    }
+
+    function fundImgUrl() public view virtual returns (string memory) {
+        return _fundImgUrl;
+    }
+
     /**
      * @dev Returns the owner of the fund
      */
-    function owner() public view virtual returns (address){
+    function ownerAddress() public view virtual returns (address) {
         return _owner;
     }
 
@@ -122,9 +167,34 @@ contract erc20Fund is Context, IERC20, IERC20Metadata {
         uint256 eth_to_return = amount * _tokenPrice;
         payable(msg.sender).transfer(eth_to_return);
     }
-    
-     
 
+    function buyNFT(address nftAddress, string memory openseaUrl, string memory imgUrl, uint256 value) public virtual onlyOwner { 
+        require(_weiBalance - value > 0, "Not enough eth to buy NFT");
+        _noOfAssets += 1;
+        Asset memory asset = Asset(openseaUrl, imgUrl, value, nftAddress, block.timestamp);
+        _assetMap[_noOfAssets] = asset;
+        _weiBalance = _weiBalance - value;
+        emit NFTBought(openseaUrl, imgUrl, value, nftAddress);
+    }
+
+    function sellNFT(uint256 assetNumber, uint256 value) public virtual onlyOwner{
+        require(_noOfAssets > 0);
+        Asset memory asset = _assetMap[assetNumber]; 
+        _noOfAssets -= 1;
+        _weiBalance += value;
+        uint256 old_value = asset.value;
+        _tokenPrice = (_tokenPrice * value)/old_value; 
+        emit NFTSold(asset.openseaUrl, asset.imageUrl, asset.value, asset.nftAddress);
+    }
+
+    function setTokenPrice(uint256 tokenPrice_) public virtual onlyOwner{
+        _tokenPrice = tokenPrice_;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == _owner, "Only owner can use this function");
+        _;
+    }
     
     /**
      * @dev See {IERC20-totalSupply}.
@@ -156,7 +226,7 @@ contract erc20Fund is Context, IERC20, IERC20Metadata {
     /**
      * @dev See {IERC20-allowance}.
      */
-    function allowance(address owner, address spender) public view virtual override returns (uint256) {
+    function allowance(address owner, address spender) public view virtual override returns (uint) {
         return _allowances[owner][spender];
     }
 
