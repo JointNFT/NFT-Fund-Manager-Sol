@@ -59,7 +59,8 @@ contract erc20Fund is Context, IERC20, IERC20Metadata {
     string private _name;
     string private _symbol;
     address private _owner;
-    
+    string public _desc;
+    string public _twitterHandle;
 
     /**
      * @dev Sets the values for {name}, {owner} and {symbol}.
@@ -80,7 +81,6 @@ contract erc20Fund is Context, IERC20, IERC20Metadata {
         _weiBalance = msg.value;
         _tokenStartPrice = tokenPrice_;
         _fundImgUrl = fundImgUrl_;
-
         _balances[owner_] = msg.value/tokenPrice_;
     }
 
@@ -159,32 +159,41 @@ contract erc20Fund is Context, IERC20, IERC20Metadata {
         uint256 remainder;
         (quotient,remainder) = getDivided(msg.value, _tokenPrice);
         _mint(msg.sender, (quotient+remainder));
+        _weiBalance += msg.value;
         return true;
     }
     
     function removeFunds(uint256 amount) public virtual {
         _burn(msg.sender, amount);
         uint256 eth_to_return = amount * _tokenPrice;
+        _weiBalance -= amount;
         payable(msg.sender).transfer(eth_to_return);
     }
 
     function buyNFT(address nftAddress, string memory openseaUrl, string memory imgUrl, uint256 value) public virtual onlyOwner { 
         require(_weiBalance - value > 0, "Not enough eth to buy NFT");
-        _noOfAssets += 1;
         Asset memory asset = Asset(openseaUrl, imgUrl, value, nftAddress, block.timestamp);
         _assetMap[_noOfAssets] = asset;
+        _noOfAssets += 1;
         _weiBalance = _weiBalance - value;
         emit NFTBought(openseaUrl, imgUrl, value, nftAddress);
     }
 
+    // Replace item to be deleted by the last element, and delete the last element
+    function deleteNFTandRearrange(uint256 assetNumber) public virtual returns(Asset memory){
+        Asset memory deletedAsset = _assetMap[assetNumber];
+        _assetMap[assetNumber] = _assetMap[_noOfAssets-1];
+        _noOfAssets -= 1;
+        return deletedAsset;
+    }
+
     function sellNFT(uint256 assetNumber, uint256 value) public virtual onlyOwner{
         require(_noOfAssets > 0);
-        Asset memory asset = _assetMap[assetNumber]; 
-        _noOfAssets -= 1;
+        Asset memory deletedAsset = deleteNFTandRearrange(assetNumber);
         _weiBalance += value;
-        uint256 old_value = asset.value;
-        _tokenPrice = (_tokenPrice * value)/old_value; 
-        emit NFTSold(asset.openseaUrl, asset.imageUrl, asset.value, asset.nftAddress);
+        uint256 old_value = deletedAsset.value;
+        _tokenPrice = (_tokenPrice * value)/old_value;
+        emit NFTSold(deletedAsset.openseaUrl, deletedAsset.imageUrl, deletedAsset.value, deletedAsset.nftAddress);
     }
 
     function setTokenPrice(uint256 tokenPrice_) public virtual onlyOwner{
