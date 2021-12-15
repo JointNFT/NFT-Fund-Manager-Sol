@@ -77,7 +77,7 @@ contract erc20Fund is Context, IERC20, IERC20Metadata {
         _symbol = symbol_;
         _owner = owner_;
         _tokenPrice = tokenPrice_;
-        _totalSupply = 0;
+        _totalSupply = msg.value/tokenPrice_;
         _weiBalance = msg.value;
         _tokenStartPrice = tokenPrice_;
         _fundImgUrl = fundImgUrl_;
@@ -166,8 +166,9 @@ contract erc20Fund is Context, IERC20, IERC20Metadata {
     function removeFunds(uint256 amount) public virtual {
         _burn(msg.sender, amount);
         uint256 eth_to_return = amount * _tokenPrice;
-        _weiBalance -= amount;
-        payable(msg.sender).transfer(eth_to_return);
+        _weiBalance -= eth_to_return;
+        (bool success, ) = payable(msg.sender).call{value: eth_to_return}("");
+        require(success, "Failed to send Ether");
     }
 
     function buyNFT(address nftAddress, string memory openseaUrl, string memory imgUrl, uint256 value) public virtual onlyOwner { 
